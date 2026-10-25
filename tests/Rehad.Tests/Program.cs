@@ -70,6 +70,10 @@ Check(Wildcard.Match("*.example.com", "dl.example.com") && !Wildcard.Match("r0*"
 Check(s.CategoryFor("movie.MKV")?.Name == "Video" && s.CategoryFor("a.r01")?.Name == "Compressed", "categories");
 Check(YtDlp.IsSitePage("https://www.youtube.com/watch?v=x") && !YtDlp.IsSitePage("https://example.com/a.mp4"), "site detection");
 
+var stemT = YtDlp.SafeStem("فيلم _ كوميدي جديد كامل 😂 أقوى أفلام الكوميديا العربية بجودة عالية HD | فيلم كامل 2025 حصريا على القناة بجودة 1080p");
+Check(stemT.Length <= 80 && !stemT.Contains("😂") && stemT.StartsWith("فيلم"), "safe short title: " + stemT);
+Check(SegmentedDownloader.TempDirFor(s, new DownloadItem { Id = 42, FileName = new string('x', 200) }).EndsWith("dl42"), "short temp dir");
+
 // 7. manager + queue: two files, one at a time, both complete
 var list = new List<DownloadItem>();
 var mgr = new DownloadManager(s, list);

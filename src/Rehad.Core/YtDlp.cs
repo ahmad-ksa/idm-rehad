@@ -131,7 +131,7 @@ public static class YtDlp
             line => { if (line.StartsWith("ERROR")) errors.AppendLine(line); }, ct, output);
         var text = output.ToString();
         int start = text.IndexOf('{');
-        if (code != 0 || start < 0) throw new IOException(errors.Length > 0 ? errors.ToString().Trim() : "This page has no downloadable video");
+        if (code != 0 || start < 0) throw new IOException(errors.Length > 0 ? FirstLines(errors.ToString(), 3) : "This page has no downloadable video");
         using var doc = JsonDocument.Parse(text[start..]);
         var root = doc.RootElement;
         var info = new MediaInfo
@@ -203,7 +203,8 @@ public static class YtDlp
         item.Status = DownloadStatus.Connecting;
         item.LastTry = DateTime.Now;
         Directory.CreateDirectory(item.SaveDir);
-        var stem = Path.GetFileNameWithoutExtension(item.FileName);
+        // short, emoji-free name: long titles break Windows' 260-character path limit
+        var stem = SafeStem(Path.GetFileNameWithoutExtension(item.FileName));
         if (string.IsNullOrWhiteSpace(stem)) stem = "%(title)s";
         var fmt = string.IsNullOrEmpty(item.Format) ? "bv*+ba/b" : item.Format;
         var audioOnly = fmt.StartsWith("bestaudio");
@@ -211,7 +212,7 @@ public static class YtDlp
         Directory.CreateDirectory(tmpDir);
         int conns = Math.Clamp(item.MaxConnections > 0 ? item.MaxConnections : s.MaxConnections, 1, 16);
         var args = new StringBuilder(CommonArgs(item, s));
-        args.Append($"-f \"{fmt}\" -N {conns} --newline --progress --no-quiet --continue ");
+        args.Append($"-f \"{fmt}\" -N {conns} --newline --progress --no-quiet --continue --windows-filenames --trim-filenames 100 ");
         args.Append($"--paths \"temp:{tmpDir}\" --paths \"home:{item.SaveDir}\" -o \"{stem.Replace("\"", "")}.%(ext)s\" ");
         if (!audioOnly) args.Append("--merge-output-format mp4 ");
         if (s.SpeedLimitOn && s.SpeedLimitKBps > 0) args.Append($"--limit-rate {s.SpeedLimitKBps}K ");
@@ -237,16 +238,34 @@ public static class YtDlp
                 if (m.Groups[4].Success) item.Speed = ToBytes(m.Groups[4].Value, m.Groups[5].Value);
             }
             else if (line.StartsWith("[Merger]") || line.StartsWith("[ExtractAudio]") || line.StartsWith("[FixupM3u8]")) item.Status = DownloadStatus.Assembling;
-            else if (line.StartsWith("ERROR")) errors.AppendLine(line);
+            else if (line.StartsWith("ERROR") && !errors.ToString().Contains(line)) errors.AppendLine(line);
             else if (!line.StartsWith('[') && line.Length > 3 && (line.Contains(Path.DirectorySeparatorChar) || line.Contains('/')) && File.Exists(line.Trim())) finalPath = line.Trim();
         }, ct);
         if (code != 0 || finalPath == null)
-            throw new IOException(errors.Length > 0 ? errors.ToString().Trim() : $"yt-dlp failed (code {code})");
+            throw new IOException(errors.Length > 0 ? FirstLines(errors.ToString(), 3) : $"yt-dlp failed (code {code})");
         item.FileName = Path.GetFileName(finalPath);
         item.SaveDir = Path.GetDirectoryName(finalPath)!;
         item.Size = item.Downloaded = new FileInfo(finalPath).Length;
         try { Directory.Delete(tmpDir, true); } catch { }
         try { File.Delete(Path.Combine(Store.DataDir, $"cookies_{item.Id}.txt")); } catch { }
+    }
+
+    static string FirstLines(string text, int n) =>
+        string.Join("\n", text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct().Take(n));
+
+    /// <summary>Removes emoji/symbols and limits the length of a title used as a file name.</summary>
+    public static string SafeStem(string stem)
+    {
+        var sb = new StringBuilder(stem.Length);
+        foreach (var rune in stem.EnumerateRunes())
+        {
+            var cat = Rune.GetUnicodeCategory(rune);
+            if (cat is UnicodeCategory.OtherSymbol or UnicodeCategory.Surrogate or UnicodeCategory.PrivateUse or UnicodeCategory.Format or UnicodeCategory.NonSpacingMark && rune.Value > 0xFE00) continue;
+            sb.Append(rune.ToString());
+        }
+        var r = System.Text.RegularExpressions.Regex.Replace(sb.ToString(), @"[\s_]{2,}", " ").Trim(' ', '_', '-', '.');
+        r = Net.ShortName(Net.Sanitize(r.Length == 0 ? "video" : r), 80);
+        return r.Replace("%", "%%");
     }
 
     static long ToBytes(string num, string unit)

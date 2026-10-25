@@ -157,8 +157,20 @@ public static class Net
         var sb = new StringBuilder(name.Length);
         foreach (var ch in name) sb.Append(bad.Contains(ch) || ch < 32 ? '_' : ch);
         var r = sb.ToString().Trim().TrimEnd('.');
-        if (r.Length > 180) r = r[..(180 - Path.GetExtension(r).Length)] + Path.GetExtension(r);
+        r = ShortName(r, 120);
         return r.Length == 0 ? "download" : r;
+    }
+
+    /// <summary>Limits a file name to max characters (keeps the extension, never cuts an emoji in half).</summary>
+    public static string ShortName(string name, int max)
+    {
+        if (name.Length <= max) return name;
+        var ext = Path.GetExtension(name);
+        if (ext.Length > 10) ext = "";
+        var stem = name[..^ext.Length];
+        int keep = Math.Max(1, max - ext.Length);
+        if (keep < stem.Length && char.IsHighSurrogate(stem[keep - 1])) keep--;
+        return stem[..keep].TrimEnd(' ', '.', '_', '-') + ext;
     }
 
     /// <summary>"name.ext" → "name(2).ext" until the path is free.</summary>

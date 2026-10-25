@@ -32,7 +32,7 @@ public sealed class SegmentedDownloader
     }
 
     public static string TempDirFor(Settings s, DownloadItem item) =>
-        Path.Combine(s.TempFolder, $"{Net.Sanitize(Path.GetFileNameWithoutExtension(item.FileName))}_{item.Id}");
+        Path.Combine(s.TempFolder, $"dl{item.Id}"); // short on purpose: Windows paths are limited to 260 characters
 
     string PartPath(Segment seg) => Path.Combine(tempDir, $"part_{seg.Index:D3}.tmp");
 
