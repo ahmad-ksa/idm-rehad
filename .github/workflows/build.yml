@@ -35,7 +35,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          grep -E "error [A-Z]+[0-9]+" build.log | sed -E 's/^.*src/src/' | sort -u | head -150 > errors.txt || true
+          grep -E "error [A-Z]+[0-9]+" build.log | sed -E 's/ \[[^]]*\]\s*$//; s/^.*\\src\\/src\\/' | sort -u | head -150 > errors.txt || true
           [ -s errors.txt ] || tail -80 build.log > errors.txt
           gh issue create --repo ${{ github.repository }} --title "CI build errors run ${{ github.run_number }}" --body-file errors.txt
 
