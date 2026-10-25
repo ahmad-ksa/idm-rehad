@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Rehad Download Manager",
+  "short_name": "Rehad",
+  "description": "__MSG_desc__",
+  "version": "1.0.0",
+  "default_locale": "en",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx6EHNqkIwpKLT134la98ydm9kk16o0qTH0KUZ2GUjd8EmWyJ2aVGJu8g7nE0EEtY5iVIocnUaMd1Bwg2Di39H5n9foMhHOFx1lslkteUuRMMm4d1G18P5HNaMPPmwDEw9l6J55q9Da3FBmoyRLz89l2o1CeRzKUYxZAxIEIq+TbePYw+760sZUNs45fzCDJvCKsANtY/xfslM4w2yDEPZb/Vie/nXhzYzg73sIJK/qgMxIboeCuVwEzZ/3dXKXOdqxOM3InH65qVwqbSTh0ZdxAR7snzzZN/nMxuxHLmDahlXjiY5HvmN/KokHC7PrXyal1+BzJhISi2RpiP8cdSiwIDAQAB",
+  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "action": { "default_title": "Rehad", "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png" } },
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [ { "js": ["content.js"], "matches": ["http://*/*", "https://*/*"], "all_frames": false, "run_at": "document_idle" } ],
+  "permissions": [ "downloads", "nativeMessaging", "cookies", "contextMenus", "webRequest", "webNavigation", "tabs", "storage", "scripting" ],
+  "host_permissions": [ "<all_urls>" ],
+  "minimum_chrome_version": "109"
+}

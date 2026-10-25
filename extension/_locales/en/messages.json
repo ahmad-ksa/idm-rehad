@@ -1,0 +1,10 @@
+{
+  "desc": { "message": "Sends downloads and videos from the browser to Rehad Download Manager." },
+  "dlLink": { "message": "Download with Rehad" },
+  "dlAll": { "message": "Download all links with Rehad" },
+  "dlVideo": { "message": "Download video with Rehad" },
+  "dlThis": { "message": "Download this video" },
+  "off": { "message": "Rehad: browser capture is off" },
+  "on": { "message": "Rehad: browser capture is on" },
+  "noApp": { "message": "Rehad is not installed or not running" }
+}

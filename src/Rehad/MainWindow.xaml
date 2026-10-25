@@ -1,0 +1,231 @@
+<Window x:Class="Rehad.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="clr-namespace:Rehad"
+        Title="{l:T app}" Width="1040" Height="620" MinWidth="640" MinHeight="380"
+        WindowStartupLocation="CenterScreen" Icon="Assets/app.ico" Background="White">
+    <Window.Resources>
+        <l:FileIconConverter x:Key="FileIcon"/>
+        <l:StatusConverter x:Key="Status"/>
+        <l:RateConverter x:Key="Rate"/>
+        <l:TimeLeftConverter x:Key="TimeLeft"/>
+        <l:DateConverter x:Key="Date"/>
+        <Style x:Key="TbIcon" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}"/>
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="TbText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Margin" Value="0,3,0,0"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="#333"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <Menu DockPanel.Dock="Top" Background="White" Padding="2">
+            <MenuItem Header="{l:T m.tasks}">
+                <MenuItem Header="{l:T m.add}" Click="AddUrl_Click" InputGestureText="Ctrl+N"/>
+                <MenuItem Header="{l:T m.batch}" Click="Batch_Click"/>
+                <MenuItem Header="{l:T m.batchclip}" Click="BatchClip_Click"/>
+                <Separator/>
+                <MenuItem Header="{l:T m.grabber}" Click="Grabber_Click"/>
+                <Separator/>
+                <MenuItem Header="{l:T m.export}" Click="Export_Click"/>
+                <MenuItem Header="{l:T m.import}" Click="Import_Click"/>
+                <Separator/>
+                <MenuItem Header="{l:T m.exit}" Click="Exit_Click"/>
+            </MenuItem>
+            <MenuItem Header="{l:T m.file}" SubmenuOpened="FileMenu_Opened" x:Name="FileMenu">
+                <MenuItem Header="{l:T m.open}" Click="Open_Click"/>
+                <MenuItem Header="{l:T m.openfolder}" Click="OpenFolder_Click"/>
+                <Separator/>
+                <MenuItem Header="{l:T m.resume}" Click="Resume_Click"/>
+                <MenuItem Header="{l:T m.stop}" Click="Stop_Click"/>
+                <MenuItem Header="{l:T m.redownload}" Click="Redownload_Click"/>
+                <MenuItem Header="{l:T m.remove}" Click="Delete_Click"/>
+                <Separator/>
+                <MenuItem Header="{l:T m.copyurl}" Click="CopyUrl_Click"/>
+                <MenuItem Header="{l:T m.movequeue}" x:Name="MoveQueueMenu"/>
+                <MenuItem Header="{l:T m.props}" Click="Props_Click"/>
+            </MenuItem>
+            <MenuItem Header="{l:T m.downloads}">
+                <MenuItem Header="{l:T m.pauseall}" Click="StopAll_Click"/>
+                <MenuItem Header="{l:T m.stopall}" Click="StopAll_Click"/>
+                <Separator/>
+                <MenuItem Header="{l:T m.delcompleted}" Click="DeleteCompleted_Click"/>
+                <Separator/>
+                <MenuItem Header="{l:T m.find}" Click="Find_Click"/>
+                <Separator/>
+                <MenuItem Header="{l:T m.scheduler}" Click="Scheduler_Click"/>
+                <MenuItem Header="{l:T m.startqueue}" x:Name="StartQueueMenu"/>
+                <MenuItem Header="{l:T m.stopqueue}" x:Name="StopQueueMenu"/>
+                <Separator/>
+                <MenuItem Header="{l:T m.speed}">
+                    <MenuItem Header="{l:T m.speedon}" x:Name="SpeedOnMenu" Click="SpeedOn_Click" IsCheckable="True"/>
+                    <MenuItem Header="{l:T m.speedoff}" x:Name="SpeedOffMenu" Click="SpeedOff_Click" IsCheckable="True"/>
+                    <Separator/>
+                    <MenuItem Header="{l:T m.speedset}" Click="SpeedSettings_Click"/>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="{l:T m.options}" Click="Options_Click"/>
+            </MenuItem>
+            <MenuItem Header="{l:T m.view}">
+                <MenuItem Header="{l:T m.hidecat}" x:Name="HideCatMenu" IsCheckable="True" Click="HideCat_Click"/>
+                <MenuItem Header="{l:T m.arrange}" x:Name="ArrangeMenu"/>
+                <MenuItem Header="{l:T m.lang}">
+                    <MenuItem Header="English" Click="LangEn_Click" x:Name="LangEnMenu" IsCheckable="True"/>
+                    <MenuItem Header="العربية" Click="LangAr_Click" x:Name="LangArMenu" IsCheckable="True"/>
+                </MenuItem>
+            </MenuItem>
+            <MenuItem Header="{l:T m.help}">
+                <MenuItem Header="{l:T m.browsers}" Click="Browsers_Click"/>
+                <MenuItem Header="{l:T m.updates}" Click="UpdateYtDlp_Click"/>
+                <Separator/>
+                <MenuItem Header="{l:T m.about}" Click="About_Click"/>
+            </MenuItem>
+        </Menu>
+
+        <!-- toolbar -->
+        <Border DockPanel.Dock="Top" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,1" Background="#FBFCFD">
+            <StackPanel Orientation="Horizontal" Margin="6,4">
+                <Button Style="{StaticResource ToolButton}" Click="AddUrl_Click" ToolTip="{l:T m.add}">
+                    <StackPanel><TextBlock Style="{StaticResource TbIcon}" Text="&#xE710;" Foreground="#2E9E4F"/><TextBlock Style="{StaticResource TbText}" Text="{l:T tb.add}"/></StackPanel>
+                </Button>
+                <Button Style="{StaticResource ToolButton}" Click="Resume_Click" x:Name="ResumeBtn">
+                    <StackPanel><TextBlock Style="{StaticResource TbIcon}" Text="&#xE768;" Foreground="#1D7FC4"/><TextBlock Style="{StaticResource TbText}" Text="{l:T tb.resume}"/></StackPanel>
+                </Button>
+                <Button Style="{StaticResource ToolButton}" Click="Stop_Click" x:Name="StopBtn">
+                    <StackPanel><TextBlock Style="{StaticResource TbIcon}" Text="&#xE769;" Foreground="#D9822B"/><TextBlock Style="{StaticResource TbText}" Text="{l:T tb.stop}"/></StackPanel>
+                </Button>
+                <Button Style="{StaticResource ToolButton}" Click="StopAll_Click">
+                    <StackPanel><TextBlock Style="{StaticResource TbIcon}" Text="&#xE71A;" Foreground="#C83F3F"/><TextBlock Style="{StaticResource TbText}" Text="{l:T tb.stopall}"/></StackPanel>
+                </Button>
+                <Rectangle Width="1" Fill="{StaticResource Line}" Margin="6,4"/>
+                <Button Style="{StaticResource ToolButton}" Click="Delete_Click" x:Name="DeleteBtn">
+                    <StackPanel><TextBlock Style="{StaticResource TbIcon}" Text="&#xE74D;" Foreground="#C83F3F"/><TextBlock Style="{StaticResource TbText}" Text="{l:T tb.delete}"/></StackPanel>
+                </Button>
+                <Button Style="{StaticResource ToolButton}" Click="DeleteCompleted_Click">
+                    <StackPanel><TextBlock Style="{StaticResource TbIcon}" Text="&#xE73E;" Foreground="#7A5BC7"/><TextBlock Style="{StaticResource TbText}" Text="{l:T tb.delcompl}"/></StackPanel>
+                </Button>
+                <Rectangle Width="1" Fill="{StaticResource Line}" Margin="6,4"/>
+                <Button Style="{StaticResource ToolButton}" Click="Options_Click">
+                    <StackPanel><TextBlock Style="{StaticResource TbIcon}" Text="&#xE713;" Foreground="#5B6B7A"/><TextBlock Style="{StaticResource TbText}" Text="{l:T tb.options}"/></StackPanel>
+                </Button>
+                <Button Style="{StaticResource ToolButton}" Click="Scheduler_Click">
+                    <StackPanel><TextBlock Style="{StaticResource TbIcon}" Text="&#xE787;" Foreground="#1D7FC4"/><TextBlock Style="{StaticResource TbText}" Text="{l:T tb.scheduler}"/></StackPanel>
+                </Button>
+                <Button Style="{StaticResource ToolButton}" Click="StartQueue_Click">
+                    <StackPanel><TextBlock Style="{StaticResource TbIcon}" Text="&#xE8EE;" Foreground="#2E9E4F"/><TextBlock Style="{StaticResource TbText}" Text="{l:T tb.startq}"/></StackPanel>
+                </Button>
+                <Button Style="{StaticResource ToolButton}" Click="StopQueue_Click">
+                    <StackPanel><TextBlock Style="{StaticResource TbIcon}" Text="&#xE15B;" Foreground="#C83F3F"/><TextBlock Style="{StaticResource TbText}" Text="{l:T tb.stopq}"/></StackPanel>
+                </Button>
+                <Rectangle Width="1" Fill="{StaticResource Line}" Margin="6,4"/>
+                <Button Style="{StaticResource ToolButton}" Click="Grabber_Click">
+                    <StackPanel><TextBlock Style="{StaticResource TbIcon}" Text="&#xE721;" Foreground="#D9822B"/><TextBlock Style="{StaticResource TbText}" Text="{l:T tb.grabber}"/></StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- status bar -->
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
+            <DockPanel Margin="8,3">
+                <TextBlock x:Name="SpeedStatus" DockPanel.Dock="Right" Foreground="#555"/>
+                <TextBlock x:Name="StatusText" Foreground="#555" TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+        </Border>
+
+        <!-- find bar -->
+        <Border DockPanel.Dock="Bottom" x:Name="FindBar" Visibility="Collapsed" Background="#FFFDE8" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" Margin="8,4">
+                <TextBlock Text="{l:T find}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBox x:Name="FindBox" Width="260" TextChanged="FindBox_TextChanged" KeyDown="FindBox_KeyDown"/>
+                <Button Content="✕" MinWidth="28" Click="CloseFind_Click"/>
+            </StackPanel>
+        </Border>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="CatColumn" Width="200" MinWidth="0"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <DockPanel Grid.Column="0" x:Name="CatPanel" Background="#FBFCFD">
+                <TextBlock DockPanel.Dock="Top" Text="{l:T cat.root}" FontWeight="SemiBold" Margin="8,6,8,4" Foreground="#2B3A4A"/>
+                <TreeView x:Name="Tree" BorderThickness="0" Background="Transparent" SelectedItemChanged="Tree_SelectedItemChanged" Padding="2"/>
+            </DockPanel>
+            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch" Background="{StaticResource Line}" x:Name="CatSplitter"/>
+
+            <ListView Grid.Column="2" x:Name="List" BorderThickness="0" SelectionMode="Extended"
+                      MouseDoubleClick="List_DoubleClick" KeyDown="List_KeyDown" SelectionChanged="List_SelectionChanged"
+                      GridViewColumnHeader.Click="Header_Click" AllowDrop="True" Drop="List_Drop">
+                <ListView.ContextMenu>
+                    <ContextMenu x:Name="ListMenu" Opened="ListMenu_Opened">
+                        <MenuItem Header="{l:T m.open}" Click="Open_Click" FontWeight="Bold"/>
+                        <MenuItem Header="{l:T m.openfolder}" Click="OpenFolder_Click"/>
+                        <Separator/>
+                        <MenuItem Header="{l:T m.resume}" Click="Resume_Click"/>
+                        <MenuItem Header="{l:T m.stop}" Click="Stop_Click"/>
+                        <MenuItem Header="{l:T m.redownload}" Click="Redownload_Click"/>
+                        <MenuItem Header="{l:T m.remove}" Click="Delete_Click"/>
+                        <Separator/>
+                        <MenuItem Header="{l:T m.movequeue}" x:Name="CtxQueueMenu"/>
+                        <MenuItem Header="{l:T m.copyurl}" Click="CopyUrl_Click"/>
+                        <MenuItem Header="{l:T m.props}" Click="Props_Click"/>
+                    </ContextMenu>
+                </ListView.ContextMenu>
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Padding" Value="2,1"/>
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="{l:T col.q}" Width="30">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate><TextBlock Text="{Binding Queue, Converter={x:Static l:QueueMarkConverter.Instance}}" Foreground="#1D7FC4"/></DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Header="{l:T col.name}" Width="330">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Width="16" Height="16" Margin="0,0,6,0" Source="{Binding FileName, Converter={StaticResource FileIcon}}"/>
+                                        <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Header="{l:T col.size}" Width="85" DisplayMemberBinding="{Binding SizeText}"/>
+                        <GridViewColumn Header="{l:T col.status}" Width="130">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <ProgressBar Height="14" Minimum="0" Maximum="100" Value="{Binding Progress, Mode=OneWay}" Foreground="#4CAF50" Background="Transparent" BorderThickness="0" Opacity="0.35"/>
+                                        <TextBlock Margin="3,0">
+                                            <TextBlock.Text>
+                                                <MultiBinding Converter="{StaticResource Status}">
+                                                    <Binding Path="Status"/>
+                                                    <Binding Path="Progress"/>
+                                                    <Binding Path="Error"/>
+                                                </MultiBinding>
+                                            </TextBlock.Text>
+                                        </TextBlock>
+                                    </Grid>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Header="{l:T col.left}" Width="95" DisplayMemberBinding="{Binding TimeLeft, Converter={StaticResource TimeLeft}}"/>
+                        <GridViewColumn Header="{l:T col.rate}" Width="95" DisplayMemberBinding="{Binding Speed, Converter={StaticResource Rate}}"/>
+                        <GridViewColumn Header="{l:T col.last}" Width="125" DisplayMemberBinding="{Binding LastTry, Converter={StaticResource Date}}"/>
+                        <GridViewColumn Header="{l:T col.desc}" Width="160" DisplayMemberBinding="{Binding Description}"/>
+                    </GridView>
+                </ListView.View>
+            </ListView>
+        </Grid>
+    </DockPanel>
+</Window>
