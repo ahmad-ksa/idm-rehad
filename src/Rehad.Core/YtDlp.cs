@@ -216,7 +216,11 @@ public static class YtDlp
         args.Append($"--paths \"temp:{tmpDir}\" --paths \"home:{item.SaveDir}\" -o \"{stem.Replace("\"", "")}.%(ext)s\" ");
         if (!audioOnly) args.Append("--merge-output-format mp4 ");
         if (s.SpeedLimitOn && s.SpeedLimitKBps > 0) args.Append($"--limit-rate {s.SpeedLimitKBps}K ");
-        args.Append("--print after_move:filepath ");
+        // the final path is written to a UTF-8 file (console output may not keep Arabic names intact)
+        var pathFile = Path.Combine(tmpDir, "final_path.txt");
+        try { File.Delete(pathFile); } catch { }
+        args.Append($"--encoding utf-8 --print-to-file after_move:filepath \"{pathFile}\" ");
+        var started = DateTime.Now.AddSeconds(-5);
         args.Append($"\"{item.PageUrl ?? item.Url}\"");
 
         string? finalPath = null;
@@ -241,6 +245,16 @@ public static class YtDlp
             else if (line.StartsWith("ERROR") && !errors.ToString().Contains(line)) errors.AppendLine(line);
             else if (!line.StartsWith('[') && line.Length > 3 && (line.Contains(Path.DirectorySeparatorChar) || line.Contains('/')) && File.Exists(line.Trim())) finalPath = line.Trim();
         }, ct);
+        if (finalPath == null && File.Exists(pathFile))
+            finalPath = File.ReadAllLines(pathFile, Encoding.UTF8).Select(l => l.Trim()).LastOrDefault(l => l.Length > 0 && File.Exists(l));
+        if (finalPath == null && code == 0)
+        {
+            // fallback: newest finished file with our name in the save folder
+            var exts = new[] { ".mp4", ".mkv", ".webm", ".m4a", ".mp3", ".opus", ".ogg", ".mov", ".flv" };
+            finalPath = new DirectoryInfo(item.SaveDir).EnumerateFiles(stem.Replace("%%", "%") + ".*")
+                .Where(f => exts.Contains(f.Extension.ToLowerInvariant()) && f.LastWriteTime >= started.AddDays(-30))
+                .OrderByDescending(f => f.LastWriteTime).FirstOrDefault()?.FullName;
+        }
         if (code != 0 || finalPath == null)
             throw new IOException(errors.Length > 0 ? FirstLines(errors.ToString(), 3) : $"yt-dlp failed (code {code})");
         item.FileName = Path.GetFileName(finalPath);

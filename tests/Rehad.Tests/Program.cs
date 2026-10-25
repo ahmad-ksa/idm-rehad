@@ -74,6 +74,14 @@ var stemT = YtDlp.SafeStem("فيلم _ كوميدي جديد كامل 😂 أق�
 Check(stemT.Length <= 80 && !stemT.Contains("😂") && stemT.StartsWith("فيلم"), "safe short title: " + stemT);
 Check(SegmentedDownloader.TempDirFor(s, new DownloadItem { Id = 42, FileName = new string('x', 200) }).EndsWith("dl42"), "short temp dir");
 
+// yt-dlp path (generic extractor on a local file, Arabic name)
+if (YtDlp.Exe != null)
+{
+    var yi = new DownloadItem { Id = 77, Kind = DownloadKind.Site, Url = baseUrl + "/clip.mp4", PageUrl = baseUrl + "/clip.mp4", FileName = "تامر حسني - قال فاكرني 😂.mp4", SaveDir = s.DefaultFolder };
+    await YtDlp.DownloadAsync(yi, s, CancellationToken.None);
+    Check(File.Exists(yi.FullPath) && yi.Size == 3000000, "yt-dlp download + final path: " + yi.FileName);
+}
+
 // 7. manager + queue: two files, one at a time, both complete
 var list = new List<DownloadItem>();
 var mgr = new DownloadManager(s, list);
