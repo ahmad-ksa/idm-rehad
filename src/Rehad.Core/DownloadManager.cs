@@ -59,7 +59,16 @@ public sealed class DownloadManager
         }
     }
 
-    public void Save() => Store.Save("downloads.json", new DownloadList { NextId = nextId, Items = Items.ToList() });
+    public void Save()
+    {
+        // jobs may be changing segment lists while we serialize: retry a few times
+        for (int i = 0; i < 5; i++)
+        {
+            try { Store.Save("downloads.json", new DownloadList { NextId = nextId, Items = Items.ToList() }); return; }
+            catch (InvalidOperationException) { Thread.Sleep(20); }
+            catch (IOException) { Thread.Sleep(50); }
+        }
+    }
     public void SaveSettings() => Store.Save("settings.json", Settings);
 
     public DownloadItem Create(string url) => new()

@@ -23,11 +23,6 @@ public partial class MainWindow : Window
         view = CollectionViewSource.GetDefaultView(App.Items);
         view.Filter = o => o is DownloadItem it && filter(it) && (findText.Length == 0 || Matches(it));
         view.SortDescriptions.Add(new SortDescription(nameof(DownloadItem.Added), ListSortDirection.Ascending));
-        if (view is ICollectionViewLiveShaping live && live.CanChangeLiveFiltering)
-        {
-            live.LiveFilteringProperties.Add(nameof(DownloadItem.Status));
-            live.IsLiveFiltering = true;
-        }
         List.ItemsSource = view;
         RebuildTree();
         BuildArrangeMenu();
@@ -123,10 +118,15 @@ public partial class MainWindow : Window
         DeleteBtn.IsEnabled = sel.Count > 0;
     }
 
+    string lastStatuses = "";
+
     public void RefreshStatus()
     {
         if (!IsVisible) return;
         UpdateButtons();
+        // re-apply the category filter when a download changes state (Unfinished → Finished …)
+        var sig = string.Concat(App.Items.Select(i => (char)('a' + (int)i.Status)));
+        if (sig != lastStatuses) { lastStatuses = sig; view.Refresh(); }
         if (DateTime.Now < flashUntil) return;
         int running = App.Manager.RunningCount;
         double speed = App.Items.Where(App.Manager.IsRunning).Sum(i => i.Speed);

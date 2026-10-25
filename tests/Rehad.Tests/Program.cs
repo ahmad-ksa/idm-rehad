@@ -70,6 +70,19 @@ Check(Wildcard.Match("*.example.com", "dl.example.com") && !Wildcard.Match("r0*"
 Check(s.CategoryFor("movie.MKV")?.Name == "Video" && s.CategoryFor("a.r01")?.Name == "Compressed", "categories");
 Check(YtDlp.IsSitePage("https://www.youtube.com/watch?v=x") && !YtDlp.IsSitePage("https://example.com/a.mp4"), "site detection");
 
+// 7. manager + queue: two files, one at a time, both complete
+var list = new List<DownloadItem>();
+var mgr = new DownloadManager(s, list);
+list.Clear();
+var qa = mgr.Create(baseUrl + "/big.bin"); qa.FileName = "q1.bin"; qa.SaveDir = s.DefaultFolder; mgr.Add(qa);
+var qb = mgr.Create(baseUrl + "/norange/big.bin"); qb.FileName = "q2.bin"; qb.SaveDir = s.DefaultFolder; mgr.Add(qb);
+mgr.AddToQueue(qa, mgr.MainQueue); mgr.AddToQueue(qb, mgr.MainQueue);
+bool finished = false; int maxRunning = 0;
+mgr.QueueFinished += _ => finished = true;
+mgr.StartQueue(mgr.MainQueue);
+for (int i = 0; i < 600 && !finished; i++) { maxRunning = Math.Max(maxRunning, mgr.RunningCount); mgr.Tick(); await Task.Delay(100); }
+Check(finished && qa.IsFinished && qb.IsFinished && maxRunning == 1, $"queue processed one file at a time (status {qa.Status}/{qb.Status})");
+
 try { Directory.Delete(work, true); } catch { }
 Console.WriteLine(failed == 0 ? "ALL PASSED" : $"{failed} FAILED");
 return failed;

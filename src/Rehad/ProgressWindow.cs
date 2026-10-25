@@ -123,6 +123,11 @@ public sealed class ProgressWindow : Window
 
     void Refresh()
     {
+        try { RefreshCore(); } catch (InvalidOperationException) { }
+    }
+
+    void RefreshCore()
+    {
         Title = $"{item.Progress:0}% {item.FileName}";
         url.Text = item.PageUrl ?? item.Url;
         url.ToolTip = url.Text;
@@ -151,6 +156,11 @@ public sealed class ProgressWindow : Window
     }
 
     void DrawMap()
+    {
+        try { DrawMapCore(); } catch (InvalidOperationException) { }
+    }
+
+    void DrawMapCore()
     {
         map.Children.Clear();
         double w = map.ActualWidth;
