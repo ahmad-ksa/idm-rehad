@@ -97,6 +97,8 @@ public static class YtDlp
         if (s.Proxy == ProxyMode.Manual)
             sb.Append(s.UseSocks && s.SocksProxy.Length > 0 ? $"--proxy socks5://{s.SocksProxy} " : s.HttpProxy.Length > 0 ? $"--proxy http://{s.HttpProxy} " : "");
         if (Tools.Find("ffmpeg") is { } ff) sb.Append($"--ffmpeg-location \"{Path.GetDirectoryName(ff)}\" ");
+        // YouTube needs a JavaScript runtime to unlock its formats; Deno is shipped next to yt-dlp
+        if (Tools.Find("deno") is { } deno) sb.Append($"--js-runtimes \"deno:{deno}\" ");
         return sb.ToString();
     }
 
@@ -164,22 +166,38 @@ public static class YtDlp
             var v = g.OrderByDescending(f => f.Ext == "mp4").ThenByDescending(f => f.Bitrate).First();
             var choice = new MediaFormat
             {
-                Id = v.HasAudio || bestAudio == null ? v.Id : $"{v.Id}+{bestAudio.Id}",
+                Id = $"bv*[height<={v.Height}]+ba/b[height<={v.Height}]/bv*+ba/b",
                 Ext = "mp4", Height = v.Height, Fps = v.Fps, HasVideo = true, HasAudio = true,
                 Size = v.Size + (v.HasAudio ? 0 : bestAudio?.Size ?? 0),
             };
             info.Choices.Add(choice);
         }
         if (info.Choices.Count == 0 && formats.Count > 0)
-            info.Choices.Add(new MediaFormat { Id = "best", Ext = Str(root, "ext") ?? "mp4", HasVideo = true, HasAudio = true, Height = (int)Num(root, "height") });
+            info.Choices.Add(new MediaFormat { Id = "bv*+ba/b", Ext = Str(root, "ext") ?? "mp4", HasVideo = true, HasAudio = true, Height = (int)Num(root, "height") });
         if (bestAudio != null)
-            info.Choices.Add(new MediaFormat { Id = "bestaudio[ext=m4a]/bestaudio", Ext = "m4a", HasAudio = true, Bitrate = bestAudio.Bitrate, Size = bestAudio.Size });
+            info.Choices.Add(new MediaFormat { Id = "bestaudio[ext=m4a]/bestaudio/b", Ext = "m4a", HasAudio = true, Bitrate = bestAudio.Bitrate, Size = bestAudio.Size });
         return info;
     }
 
     static readonly Regex progress = new(@"\[download\]\s+([\d.]+)% of\s+~?\s*([\d.]+)(\w+)(?: at\s+([\d.]+)(\w+)/s)?(?: ETA ([\d:]+))?", RegexOptions.Compiled);
 
     public static async Task DownloadAsync(DownloadItem item, Settings s, CancellationToken ct)
+    {
+        try { await DownloadOnceAsync(item, s, ct); }
+        catch (IOException ex) when (!ct.IsCancellationRequested &&
+            (ex.Message.Contains("format is not available", StringComparison.OrdinalIgnoreCase) ||
+             ex.Message.Contains("Sign in", StringComparison.OrdinalIgnoreCase) ||
+             ex.Message.Contains("HTTP Error 403", StringComparison.OrdinalIgnoreCase)))
+        {
+            var fmt = item.Format; var cookies = item.Cookies;
+            item.Format = item.Format?.StartsWith("bestaudio") == true ? "bestaudio/b" : "bv*+ba/b";
+            if (ex.Message.Contains("format is not available", StringComparison.OrdinalIgnoreCase)) item.Cookies = null;
+            try { await DownloadOnceAsync(item, s, ct); }
+            finally { item.Format = fmt; item.Cookies = cookies; }
+        }
+    }
+
+    static async Task DownloadOnceAsync(DownloadItem item, Settings s, CancellationToken ct)
     {
         var exe = Exe ?? throw new FileNotFoundException("yt-dlp.exe is missing");
         item.Status = DownloadStatus.Connecting;

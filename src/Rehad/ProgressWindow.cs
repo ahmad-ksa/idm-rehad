@@ -26,13 +26,17 @@ public sealed class ProgressWindow : Window
         this.item = item;
         Width = 560;
         SizeToContent = SizeToContent.Height;
-        ResizeMode = ResizeMode.CanMinimize;
+        ResizeMode = ResizeMode.CanResize;
+        MinWidth = 480;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         FlowDirection = Loc.Flow;
         Background = Brushes.White;
         try { Icon = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Assets/app.ico")); } catch { }
 
         var tabs = new TabControl { Margin = new Thickness(10, 10, 10, 0) };
+        var copy = new MenuItem { Header = Loc.T("m.copyurl").Replace("_", "").Replace("الرابط", "النص").Replace("address", "text") };
+        copy.Click += (_, _) => { try { Clipboard.SetText(status.Text); } catch { } };
+        status.ContextMenu = new ContextMenu { Items = { copy } };
 
         // status tab
         var st = new StackPanel { Margin = new Thickness(10) };
@@ -116,6 +120,8 @@ public sealed class ProgressWindow : Window
     public void ShowError(string message)
     {
         Refresh();
+        status.TextWrapping = TextWrapping.Wrap;
+        status.ToolTip = message;
         status.Text = Loc.T("st.Error") + ": " + message;
         status.Foreground = Brushes.Firebrick;
         Activate();
@@ -133,6 +139,8 @@ public sealed class ProgressWindow : Window
         url.ToolTip = url.Text;
         var running = App.Manager.IsRunning(item);
         status.Foreground = item.Status == DownloadStatus.Error ? Brushes.Firebrick : Brushes.Black;
+        status.TextWrapping = item.Status == DownloadStatus.Error ? TextWrapping.Wrap : TextWrapping.NoWrap;
+        status.ToolTip = item.Status == DownloadStatus.Error ? item.Error : null;
         status.Text = item.Status switch
         {
             DownloadStatus.Downloading => item.ActiveConnections > 1 ? $"Receiving data... ({item.ActiveConnections} connections)" : "Receiving data...",
