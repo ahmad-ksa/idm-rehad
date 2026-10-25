@@ -207,7 +207,7 @@
                                 <DataTemplate>
                                     <Grid>
                                         <ProgressBar Height="14" Minimum="0" Maximum="100" Value="{Binding Progress, Mode=OneWay}" Foreground="#4CAF50" Background="Transparent" BorderThickness="0" Opacity="0.35"/>
-                                        <TextBlock Margin="3,0">
+                                        <TextBlock Margin="3,0" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Error}" MaxHeight="18">
                                             <TextBlock.Text>
                                                 <MultiBinding Converter="{StaticResource Status}">
                                                     <Binding Path="Status"/>

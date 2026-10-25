@@ -40,6 +40,7 @@ public sealed class DownloadManager
         foreach (var it in saved.Items)
         {
             if (it.IsRunning || it.Status == DownloadStatus.Queued && it.Downloaded > 0) it.Status = DownloadStatus.Paused;
+            if (it.Error.Length > 300) it.Error = it.Error[..300];
             Items.Add(it);
             nextId = Math.Max(nextId, it.Id + 1);
         }
@@ -140,7 +141,8 @@ public sealed class DownloadManager
         catch (Exception ex)
         {
             item.Status = DownloadStatus.Error;
-            item.Error = ex.Message;
+            var msg = string.Join("\n", ex.Message.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct().Take(3));
+            item.Error = msg.Length > 300 ? msg[..300] : msg;
             item.Speed = 0; item.TimeLeft = null; item.ActiveConnections = 0;
             Ui(() => { Save(); Failed?.Invoke(item); });
         }

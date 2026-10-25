@@ -26,11 +26,19 @@ public sealed class StatusConverter : IMultiValueConverter
         {
             DownloadStatus.Downloading => Loc.T("st.Downloading", pct),
             DownloadStatus.Paused => pct > 0 ? Loc.T("st.Paused", pct) : Loc.T("st.Paused", 0.0).Replace("0% ", ""),
-            DownloadStatus.Error => Loc.T("st.Error") + (values.Length > 2 && values[2] is string e && e.Length > 0 ? ": " + e : ""),
+            DownloadStatus.Error => Loc.T("st.Error") + (values.Length > 2 && values[2] is string e && e.Length > 0 ? ": " + ShortError(e) : ""),
             _ => Loc.T("st." + st),
         };
     }
     public object[] ConvertBack(object v, Type[] t, object p, CultureInfo c) => Array.Empty<object>();
+
+    /// <summary>One readable line: drops "ERROR: [site] id:" prefixes and anything after the first line.</summary>
+    public static string ShortError(string e)
+    {
+        var line = e.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault() ?? "";
+        line = System.Text.RegularExpressions.Regex.Replace(line, @"^ERROR:\s*(\[[^\]]+\]\s*[\w-]+:\s*)?", "");
+        return line.Length > 90 ? line[..90] + "…" : line;
+    }
 }
 
 public sealed class RateConverter : IValueConverter
