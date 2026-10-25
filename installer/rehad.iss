@@ -40,6 +40,8 @@ Name: "{autodesktop}\Rehad Download Manager"; Filename: "{app}\Rehad.exe"; Tasks
 
 [Run]
 Filename: "{app}\Rehad.exe"; Description: "{cm:LaunchProgram,Rehad Download Manager}"; Flags: nowait postinstall skipifsilent
+; automatic updates run the installer silently: start Rehad again afterwards
+Filename: "{app}\Rehad.exe"; Flags: nowait; Check: WizardSilent
 
 [UninstallRun]
 Filename: "{cmd}"; Parameters: "/c taskkill /f /im Rehad.exe"; Flags: runhidden; RunOnceId: "KillRehad"

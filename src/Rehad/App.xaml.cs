@@ -62,6 +62,21 @@ public partial class App : Application
         MainWin = new MainWindow();
         if (!background) MainWin.Show();
         if (url != null) NewDownload(new Incoming { Url = url });
+
+        // automatic updates: yt-dlp once a week, Rehad itself once a day (after the app has settled)
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(20));
+            while (true)
+            {
+                if (Settings.AutoUpdate)
+                {
+                    if (await Updater.UpdateYtDlpAsync(Settings, false, CancellationToken.None) != null) Manager.SaveSettings();
+                    await Dispatcher.InvokeAsync(() => UpdateWindow.CheckAsync(true));
+                }
+                await Task.Delay(TimeSpan.FromHours(24));
+            }
+        });
     }
 
     public static void ApplyStartup()

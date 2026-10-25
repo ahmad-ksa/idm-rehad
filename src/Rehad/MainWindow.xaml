@@ -81,6 +81,7 @@
             </MenuItem>
             <MenuItem Header="{l:T m.help}">
                 <MenuItem Header="{l:T m.browsers}" Click="Browsers_Click"/>
+                <MenuItem Header="{l:T m.checkupdate}" Click="CheckUpdate_Click"/>
                 <MenuItem Header="{l:T m.updates}" Click="UpdateYtDlp_Click"/>
                 <Separator/>
                 <MenuItem Header="{l:T m.about}" Click="About_Click"/>

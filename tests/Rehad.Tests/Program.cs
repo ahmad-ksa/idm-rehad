@@ -63,6 +63,11 @@ var hlsOut = item5.FullPath;
 Check(hlsOut.EndsWith(".ts") || hlsOut.EndsWith(".mp4"), "HLS output " + Path.GetFileName(hlsOut));
 if (hlsOut.EndsWith(".ts")) Check(Hash(hlsOut) == Hash(Path.Combine(www, "plain.expected")), "HLS decrypted + joined correctly");
 
+// update check against the real GitHub release
+var rel = await Updater.CheckAsync(s, CancellationToken.None);
+Check(rel != null && rel.SetupUrl.EndsWith(".exe") && rel.Size > 1000000, $"update check: {rel?.Tag} {rel?.SetupName}");
+Check(YtDlp.LooksLikePlaylist("https://www.youtube.com/watch?v=x&list=RDx") && !YtDlp.LooksLikePlaylist("https://www.youtube.com/watch?v=x"), "playlist detection");
+
 // 6. helpers
 Check(Links.Batch("http://x/img*.jpg", "1", "12", 3)[11] == "http://x/img012.jpg", "batch pattern");
 Check(Links.Extract("see http://a.com/f.zip and https://b.org/x?y=1.").Count == 2, "clipboard links");

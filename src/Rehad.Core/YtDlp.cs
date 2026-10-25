@@ -177,11 +177,49 @@ public static class YtDlp
         if (info.Choices.Count == 0 && formats.Count > 0)
             info.Choices.Add(new MediaFormat { Id = "bv*+ba/b", Ext = Str(root, "ext") ?? "mp4", HasVideo = true, HasAudio = true, Height = (int)Num(root, "height") });
         if (bestAudio != null)
+        {
+            info.Choices.Add(new MediaFormat { Id = "mp3:bestaudio/b", Ext = "mp3", HasAudio = true, Bitrate = 320, Note = "mp3" });
             info.Choices.Add(new MediaFormat { Id = "bestaudio[ext=m4a]/bestaudio/b", Ext = "m4a", HasAudio = true, Bitrate = bestAudio.Bitrate, Size = bestAudio.Size });
+        }
         return info;
     }
 
     static readonly Regex progress = new(@"\[download\]\s+([\d.]+)% of\s+~?\s*([\d.]+)(\w+)(?: at\s+([\d.]+)(\w+)/s)?(?: ETA ([\d:]+))?", RegexOptions.Compiled);
+
+    public sealed record PlaylistEntry(string Url, string Title, double Duration);
+
+    /// <summary>Videos of a playlist (YouTube "list=…", channel tabs, …) without opening each video.</summary>
+    public static async Task<(string title, List<PlaylistEntry> entries)> PlaylistAsync(DownloadItem item, Settings s, CancellationToken ct)
+    {
+        var exe = Exe ?? throw new FileNotFoundException("yt-dlp.exe is missing");
+        var url = item.PageUrl ?? item.Url;
+        // a watch link with list=… → open the list itself
+        if (Uri.TryCreate(url, UriKind.Absolute, out var u) && System.Web.HttpUtility.ParseQueryString(u.Query)["list"] is { Length: > 0 } list
+            && u.Host.Contains("youtube", StringComparison.OrdinalIgnoreCase))
+            url = "https://www.youtube.com/playlist?list=" + list;
+        var output = new StringBuilder();
+        var args = CommonArgs(item, s).Replace("--no-playlist ", "");
+        var code = await Tools.RunAsync(exe, $"-J --flat-playlist --yes-playlist {args} \"{url}\"", null, ct, output);
+        var text = output.ToString();
+        int start = text.IndexOf('{');
+        var entries = new List<PlaylistEntry>();
+        if (code != 0 || start < 0) return ("", entries);
+        using var doc = JsonDocument.Parse(text[start..]);
+        var root = doc.RootElement;
+        if (root.TryGetProperty("entries", out var es) && es.ValueKind == JsonValueKind.Array)
+            foreach (var e in es.EnumerateArray())
+            {
+                var eu = Str(e, "url") ?? Str(e, "webpage_url");
+                if (string.IsNullOrEmpty(eu)) continue;
+                if (!eu.StartsWith("http") && Str(e, "id") is { } id && (Str(e, "ie_key") ?? "").Contains("Youtube")) eu = "https://www.youtube.com/watch?v=" + id;
+                entries.Add(new PlaylistEntry(eu, Str(e, "title") ?? eu, Num(e, "duration")));
+            }
+        return (Str(root, "title") ?? "", entries);
+    }
+
+    public static bool LooksLikePlaylist(string url) =>
+        url.Contains("list=", StringComparison.OrdinalIgnoreCase) || url.Contains("/playlist", StringComparison.OrdinalIgnoreCase)
+        || url.Contains("/@", StringComparison.Ordinal) && (url.EndsWith("/videos") || url.EndsWith("/shorts"));
 
     static string InfoFile(DownloadItem item) => Path.Combine(Store.DataDir, $"info_{item.Id}.json");
 
@@ -217,7 +255,9 @@ public static class YtDlp
         var stem = SafeStem(Path.GetFileNameWithoutExtension(item.FileName));
         if (string.IsNullOrWhiteSpace(stem)) stem = "%(title)s";
         var fmt = string.IsNullOrEmpty(item.Format) ? "bv*+ba/b" : item.Format;
-        var audioOnly = fmt.StartsWith("bestaudio");
+        bool mp3 = fmt.StartsWith("mp3:");
+        if (mp3) fmt = fmt[4..];
+        var audioOnly = mp3 || fmt.StartsWith("bestaudio");
         var tmpDir = SegmentedDownloader.TempDirFor(s, item);
         Directory.CreateDirectory(tmpDir);
         int conns = Math.Clamp(item.MaxConnections > 0 ? item.MaxConnections : s.MaxConnections, 1, 16);
@@ -229,7 +269,10 @@ public static class YtDlp
                         $"--downloader-args \"aria2c:-x {conns} -s {conns} -k 1M --file-allocation=none --summary-interval=1 --show-console-readout=false --console-log-level=warn\" ");
         else args.Append("--http-chunk-size 10M ");
         args.Append($"--paths \"temp:{tmpDir}\" --paths \"home:{item.SaveDir}\" -o \"{stem.Replace("\"", "")}.%(ext)s\" ");
-        if (!audioOnly) args.Append("--merge-output-format mp4 ");
+        if (mp3) args.Append("-x --audio-format mp3 --audio-quality 0 --embed-thumbnail --add-metadata ");
+        else if (!audioOnly) args.Append("--merge-output-format mp4 ");
+        if (item.Subtitles && !audioOnly)
+            args.Append("--write-subs --write-auto-subs --sub-langs \"ar.*,en.*,-live_chat\" --convert-subs srt --embed-subs ");
         if (s.SpeedLimitOn && s.SpeedLimitKBps > 0) args.Append($"--limit-rate {s.SpeedLimitKBps}K ");
         // the final path is written to a UTF-8 file (console output may not keep Arabic names intact)
         var pathFile = Path.Combine(tmpDir, "final_path.txt");
@@ -272,7 +315,7 @@ public static class YtDlp
                 item.Downloaded = partBase + (long)(total * pct / 100);
                 if (m.Groups[4].Success) item.Speed = ToBytes(m.Groups[4].Value, m.Groups[5].Value);
             }
-            else if (line.StartsWith("[Merger]") || line.StartsWith("[ExtractAudio]") || line.StartsWith("[FixupM3u8]")) item.Status = DownloadStatus.Assembling;
+            else if (line.StartsWith("[Merger]") || line.StartsWith("[ExtractAudio]") || line.StartsWith("[EmbedSubtitle]") || line.StartsWith("[FixupM3u8]")) item.Status = DownloadStatus.Assembling;
             else if (line.StartsWith("ERROR") && !errors.ToString().Contains(line)) errors.AppendLine(line);
             else if (!line.StartsWith('[') && line.Length > 3 && (line.Contains(Path.DirectorySeparatorChar) || line.Contains('/')) && File.Exists(line.Trim())) finalPath = line.Trim();
         }, ct);

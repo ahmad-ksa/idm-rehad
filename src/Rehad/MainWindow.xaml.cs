@@ -323,14 +323,15 @@ public partial class MainWindow : Window
     void About_Click(object sender, RoutedEventArgs e) =>
         MessageBox.Show(this, Loc.T("ab.text", typeof(App).Assembly.GetName().Version?.ToString(3) ?? ""), Loc.T("m.about").Replace("_", ""), MessageBoxButton.OK, MessageBoxImage.Information);
 
+    async void CheckUpdate_Click(object sender, RoutedEventArgs e) => await UpdateWindow.CheckAsync(false);
+
     async void UpdateYtDlp_Click(object sender, RoutedEventArgs e)
     {
-        var exe = YtDlp.Exe;
-        if (exe == null) { MessageBox.Show(this, Loc.T("ytdlp.missing"), Loc.T("app")); return; }
+        if (YtDlp.Exe == null) { MessageBox.Show(this, Loc.T("ytdlp.missing"), Loc.T("app")); return; }
         FlashStatus("yt-dlp -U ...");
-        var log = new System.Text.StringBuilder();
-        try { await Tools.RunAsync(exe, "-U", l => log.AppendLine(l), CancellationToken.None); } catch (Exception ex) { log.AppendLine(ex.Message); }
-        MessageBox.Show(this, Loc.T("ytdlp.updated") + "\n\n" + log.ToString().Trim(), Loc.T("app"));
+        var log = await Updater.UpdateYtDlpAsync(App.Settings, true, CancellationToken.None) ?? "";
+        App.Manager.SaveSettings();
+        MessageBox.Show(this, Loc.T("ytdlp.updated") + "\n\n" + log, Loc.T("app"));
     }
 
     void Export_Click(object sender, RoutedEventArgs e)

@@ -114,6 +114,11 @@ public sealed class Settings
         new QueueInfo { Name = "Synchronization queue", Simultaneous = 1 },
     };
 
+    // Updates
+    public bool AutoUpdate { get; set; } = true;
+    public DateTime LastYtDlpUpdate { get; set; }
+    public string SkippedVersion { get; set; } = "";
+
     public string UserAgent { get; set; } =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 

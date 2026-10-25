@@ -208,6 +208,7 @@ public sealed class OptionsWindow : Dlg
         var startup = Check(Loc.T("op.startup"), s.LaunchOnStartup);
         var clip = Check(Loc.T("op.clipboard"), s.MonitorClipboard);
         var capture = Check(Loc.T("op.capture"), s.CaptureFromBrowsers);
+        var autoUpdate = Check(Loc.T("op.autoupdate"), s.AutoUpdate);
         var lang = new ComboBox { Width = 150 };
         lang.Items.Add(new ComboBoxItem { Content = "English", Tag = "en" });
         lang.Items.Add(new ComboBoxItem { Content = "العربية", Tag = "ar" });
@@ -215,7 +216,7 @@ public sealed class OptionsWindow : Dlg
         var integ = new Button { Content = Loc.T("op.integration"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0) };
         integ.Click += (_, _) => new BrowsersWindow { Owner = this }.ShowDialog();
         var g = new StackPanel();
-        g.Children.Add(startup); g.Children.Add(clip); g.Children.Add(capture); g.Children.Add(integ);
+        g.Children.Add(startup); g.Children.Add(clip); g.Children.Add(capture); g.Children.Add(autoUpdate); g.Children.Add(integ);
         g.Children.Add(Row(new TextBlock { Text = Loc.T("op.lang") }, lang));
         Tab("op.general", g);
 
@@ -324,6 +325,7 @@ public sealed class OptionsWindow : Dlg
             s.LaunchOnStartup = startup.IsChecked == true;
             s.MonitorClipboard = clip.IsChecked == true;
             s.CaptureFromBrowsers = capture.IsChecked == true;
+            s.AutoUpdate = autoUpdate.IsChecked == true;
             var newLang = (string)((ComboBoxItem)lang.SelectedItem).Tag;
             bool langChanged = newLang != (Loc.Arabic ? "ar" : "en");
             s.Language = newLang;

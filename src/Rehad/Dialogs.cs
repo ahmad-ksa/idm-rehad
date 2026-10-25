@@ -49,7 +49,8 @@ public sealed class FileInfoWindow : Dlg
     readonly DownloadItem item;
     readonly TextBox url, path, desc;
     readonly ComboBox category, quality;
-    readonly CheckBox remember;
+    readonly CheckBox remember, subs, wholeList;
+    List<YtDlp.PlaylistEntry> playlist = new();
     readonly TextBlock info;
     readonly Image icon;
     readonly CancellationTokenSource cts = new();
@@ -68,6 +69,11 @@ public sealed class FileInfoWindow : Dlg
         path = Input(item.FullPath);
         path.TextChanged += (_, _) => nameEdited = true;
         remember = Check(Loc.T("fi.remember", CatName(item.Category)), false);
+        subs = Check(Loc.T("fi.subs"), false);
+        subs.Visibility = item.Kind == DownloadKind.Site ? Visibility.Visible : Visibility.Collapsed;
+        wholeList = Check("", false);
+        wholeList.Visibility = Visibility.Collapsed;
+        wholeList.FontWeight = FontWeights.SemiBold;
         desc = Input(item.Description);
         quality = new ComboBox { MinWidth = 260, Visibility = item.Kind == DownloadKind.File ? Visibility.Collapsed : Visibility.Visible };
         info = new TextBlock { Foreground = Brushes.DimGray, Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap };
@@ -94,6 +100,8 @@ public sealed class FileInfoWindow : Dlg
         top.Children.Add(form);
         Body.Children.Add(top);
         Body.Children.Add(remember);
+        Body.Children.Add(subs);
+        Body.Children.Add(wholeList);
         Body.Children.Add(info);
 
         Btn(Loc.T("fi.start"), () => Finish(true), isDefault: true);
@@ -144,6 +152,7 @@ public sealed class FileInfoWindow : Dlg
             else
             {
                 if (YtDlp.Exe == null) { info.Text = Loc.T("ytdlp.missing"); return; }
+                if (YtDlp.LooksLikePlaylist(item.PageUrl ?? item.Url)) _ = LoadPlaylist();
                 var m = await YtDlp.InfoAsync(item, App.Settings, cts.Token);
                 if (!nameEdited || Path.GetFileNameWithoutExtension(path.Text) is "videoplayback" or "video" or "watch")
                 {
@@ -159,6 +168,19 @@ public sealed class FileInfoWindow : Dlg
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { info.Text = ex.Message; }
+    }
+
+    async Task LoadPlaylist()
+    {
+        try
+        {
+            var (title, entries) = await YtDlp.PlaylistAsync(item, App.Settings, cts.Token);
+            if (entries.Count < 2) return;
+            playlist = entries;
+            wholeList.Content = Loc.T("fi.playlist", entries.Count, title);
+            wholeList.Visibility = Visibility.Visible;
+        }
+        catch { }
     }
 
     async Task LoadHls()
@@ -182,7 +204,13 @@ public sealed class FileInfoWindow : Dlg
         item.SaveDir = Path.GetDirectoryName(full) ?? App.Settings.FolderFor(item.Category);
         item.FileName = Net.Sanitize(Path.GetFileName(full));
         item.Description = desc.Text;
-        if (quality.SelectedItem is ComboBoxItem { Tag: MediaFormat f }) item.Format = f.Id;
+        if (quality.SelectedItem is ComboBoxItem { Tag: MediaFormat f })
+        {
+            item.Format = f.Id;
+            if (f.Id.StartsWith("mp3:")) item.FileName = Path.ChangeExtension(item.FileName, ".mp3");
+            else if (!f.HasVideo) item.FileName = Path.ChangeExtension(item.FileName, "." + f.Ext);
+        }
+        item.Subtitles = subs.IsChecked == true;
         if (quality.SelectedItem is ComboBoxItem { Tag: HlsVariant v }) item.Format = v.Bandwidth.ToString();
         if (remember.IsChecked == true)
         {
@@ -195,6 +223,29 @@ public sealed class FileInfoWindow : Dlg
     void Finish(bool start)
     {
         Apply();
+        if (wholeList.IsChecked == true && playlist.Count > 1)
+        {
+            // one download per video, all in a queue (2 at a time)
+            var q = App.Manager.MainQueue;
+            var ext = Path.GetExtension(item.FileName);
+            foreach (var e in playlist)
+            {
+                var it = App.MakeItem(new App.Incoming { Url = e.Url, PageUrl = e.Url, Kind = DownloadKind.Site, Title = e.Title, Cookies = item.Cookies, UserAgent = item.UserAgent });
+                it.FileName = Net.Sanitize(e.Title) + ext;
+                it.Description = e.Title;
+                it.Format = item.Format;
+                it.Subtitles = item.Subtitles;
+                it.Category = item.Category;
+                it.SaveDir = item.SaveDir;
+                App.Manager.Add(it);
+                App.Manager.AddToQueue(it, q);
+            }
+            q.Simultaneous = Math.Max(q.Simultaneous, 2);
+            App.Manager.Save();
+            Close();
+            if (start) { App.Manager.StartQueue(q); App.ShowMain(); }
+            return;
+        }
         App.Manager.Add(item);
         Close();
         if (start) App.StartWithUi(item);

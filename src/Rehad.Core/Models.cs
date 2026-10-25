@@ -59,6 +59,8 @@ public sealed class DownloadItem : Notifier
     /// <summary>yt-dlp format id or HLS variant (bandwidth); null = best.</summary>
     public string? Format { get; set; }
     public string? Queue { get; set; }
+    /// <summary>Also save subtitles (Arabic/English, real or automatic) next to the video.</summary>
+    public bool Subtitles { get; set; }
     public int MaxConnections { get; set; }
     public DateTime Added { get; set; } = DateTime.Now;
     public List<Segment> Segments { get; set; } = new();
