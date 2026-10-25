@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace Rehad.Core;
 
-public enum DownloadStatus { Queued, Connecting, Downloading, Paused, Assembling, Complete, Error }
+public enum DownloadStatus { Queued, Connecting, Preparing, Downloading, Paused, Assembling, Complete, Error }
 
 /// <summary>File = plain HTTP/FTP file, Hls = m3u8 stream, Site = page handled by yt-dlp (YouTube, TikTok…).</summary>
 public enum DownloadKind { File, Hls, Site }
@@ -81,7 +81,7 @@ public sealed class DownloadItem : Notifier
     public long Size { get => size; set => Set(ref size, value, also: [nameof(Progress), nameof(SizeText)]); }
 
     long downloaded;
-    public long Downloaded { get => downloaded; set => Set(ref downloaded, value, also: nameof(Progress)); }
+    public long Downloaded { get => Interlocked.Read(ref downloaded); set { Interlocked.Exchange(ref downloaded, value); Raise(); Raise(nameof(Progress)); } }
 
     DownloadStatus status = DownloadStatus.Queued;
     public DownloadStatus Status { get => status; set => Set(ref status, value, also: nameof(IsFinished)); }
@@ -108,17 +108,26 @@ public sealed class DownloadItem : Notifier
     [JsonIgnore] public double Progress => Size > 0 ? Math.Min(100.0, Downloaded * 100.0 / Size) : 0;
     [JsonIgnore] public string SizeText => Size > 0 ? Fmt.Bytes(Size) : "";
     [JsonIgnore] public bool IsFinished => Status == DownloadStatus.Complete;
-    [JsonIgnore] public bool IsRunning => Status is DownloadStatus.Connecting or DownloadStatus.Downloading or DownloadStatus.Assembling;
+    [JsonIgnore] public bool IsRunning => Status is DownloadStatus.Connecting or DownloadStatus.Preparing or DownloadStatus.Downloading or DownloadStatus.Assembling;
 
-    internal long AddDownloaded(long n)
+    /// <summary>Called by connections for every block received: only counts, no UI events
+    /// (thousands per second would flood the UI thread). The UI is refreshed by <see cref="NotifyStats"/>.</summary>
+    internal long AddDownloaded(long n) => Interlocked.Add(ref downloaded, n);
+
+    long notifiedBytes = -1;
+
+    /// <summary>Pushes the current counters to the UI (twice a second from the manager timer).</summary>
+    public void NotifyStats()
     {
-        var v = Interlocked.Add(ref downloaded, n);
-        Raise(nameof(Downloaded));
-        Raise(nameof(Progress));
-        return v;
+        var d = Interlocked.Read(ref downloaded);
+        if (d != notifiedBytes)
+        {
+            notifiedBytes = d;
+            Raise(nameof(Downloaded));
+            Raise(nameof(Progress));
+        }
+        Raise(nameof(Segments));
     }
-
-    public void NotifyStats() => Raise(nameof(Segments));
 }
 
 public static class Fmt

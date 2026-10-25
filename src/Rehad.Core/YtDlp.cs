@@ -14,7 +14,7 @@ public static class Tools
     public static string? Find(string name)
     {
         var exe = OperatingSystem.IsWindows() ? name + ".exe" : name;
-        foreach (var dir in new[] { AppDir, Path.Combine(AppDir, "tools"), Path.Combine(Store.DataDir, "tools") })
+        foreach (var dir in new[] { Path.Combine(AppDir, name), AppDir, Path.Combine(AppDir, "tools"), Path.Combine(Store.DataDir, "tools") })
         {
             var p = Path.Combine(dir, exe);
             if (File.Exists(p)) return p;
@@ -132,6 +132,8 @@ public static class YtDlp
         var text = output.ToString();
         int start = text.IndexOf('{');
         if (code != 0 || start < 0) throw new IOException(errors.Length > 0 ? FirstLines(errors.ToString(), 3) : "This page has no downloadable video");
+        // keep the page information: the download starts from it instead of opening the page again
+        try { Directory.CreateDirectory(Store.DataDir); File.WriteAllText(InfoFile(item), text[start..], Encoding.UTF8); } catch { }
         using var doc = JsonDocument.Parse(text[start..]);
         var root = doc.RootElement;
         var info = new MediaInfo
@@ -181,26 +183,34 @@ public static class YtDlp
 
     static readonly Regex progress = new(@"\[download\]\s+([\d.]+)% of\s+~?\s*([\d.]+)(\w+)(?: at\s+([\d.]+)(\w+)/s)?(?: ETA ([\d:]+))?", RegexOptions.Compiled);
 
+    static string InfoFile(DownloadItem item) => Path.Combine(Store.DataDir, $"info_{item.Id}.json");
+
+    /// <summary>
+    /// Fast path first (saved page info + aria2c with many connections); if anything fails,
+    /// fall back to opening the page again with yt-dlp's own downloader and a safe format choice.
+    /// </summary>
     public static async Task DownloadAsync(DownloadItem item, Settings s, CancellationToken ct)
     {
-        try { await DownloadOnceAsync(item, s, ct); }
-        catch (IOException ex) when (!ct.IsCancellationRequested &&
-            (ex.Message.Contains("format is not available", StringComparison.OrdinalIgnoreCase) ||
-             ex.Message.Contains("Sign in", StringComparison.OrdinalIgnoreCase) ||
-             ex.Message.Contains("HTTP Error 403", StringComparison.OrdinalIgnoreCase)))
+        try { await DownloadOnceAsync(item, s, ct, fast: true); }
+        catch (IOException ex) when (!ct.IsCancellationRequested)
         {
+            try { File.Delete(InfoFile(item)); } catch { }
             var fmt = item.Format; var cookies = item.Cookies;
-            item.Format = item.Format?.StartsWith("bestaudio") == true ? "bestaudio/b" : "bv*+ba/b";
+            if (ex.Message.Contains("format is not available", StringComparison.OrdinalIgnoreCase) ||
+                ex.Message.Contains("HTTP Error 403", StringComparison.OrdinalIgnoreCase))
+                item.Format = item.Format?.StartsWith("bestaudio") == true ? "bestaudio/b" : "bv*+ba/b";
             if (ex.Message.Contains("format is not available", StringComparison.OrdinalIgnoreCase)) item.Cookies = null;
-            try { await DownloadOnceAsync(item, s, ct); }
+            try { await DownloadOnceAsync(item, s, ct, fast: false); }
             finally { item.Format = fmt; item.Cookies = cookies; }
         }
     }
 
-    static async Task DownloadOnceAsync(DownloadItem item, Settings s, CancellationToken ct)
+    static readonly Regex aria = new(@"\[#\w+ ([\d.]+)(\w+)/([\d.]+)(\w+)\((\d+)%\)(?: CN:\d+)?(?: DL:([\d.]+)(\w+))?", RegexOptions.Compiled);
+
+    static async Task DownloadOnceAsync(DownloadItem item, Settings s, CancellationToken ct, bool fast)
     {
         var exe = Exe ?? throw new FileNotFoundException("yt-dlp.exe is missing");
-        item.Status = DownloadStatus.Connecting;
+        item.Status = DownloadStatus.Preparing;
         item.LastTry = DateTime.Now;
         Directory.CreateDirectory(item.SaveDir);
         // short, emoji-free name: long titles break Windows' 260-character path limit
@@ -213,6 +223,11 @@ public static class YtDlp
         int conns = Math.Clamp(item.MaxConnections > 0 ? item.MaxConnections : s.MaxConnections, 1, 16);
         var args = new StringBuilder(CommonArgs(item, s));
         args.Append($"-f \"{fmt}\" -N {conns} --newline --progress --no-quiet --continue --windows-filenames --trim-filenames 100 ");
+        var aria2 = fast ? Tools.Find("aria2c") : null;
+        if (aria2 != null)
+            args.Append($"--downloader \"{aria2}\" --downloader \"m3u8,dash:native\" " +
+                        $"--downloader-args \"aria2c:-x {conns} -s {conns} -k 1M --file-allocation=none --summary-interval=1 --show-console-readout=false --console-log-level=warn\" ");
+        else args.Append("--http-chunk-size 10M ");
         args.Append($"--paths \"temp:{tmpDir}\" --paths \"home:{item.SaveDir}\" -o \"{stem.Replace("\"", "")}.%(ext)s\" ");
         if (!audioOnly) args.Append("--merge-output-format mp4 ");
         if (s.SpeedLimitOn && s.SpeedLimitKBps > 0) args.Append($"--limit-rate {s.SpeedLimitKBps}K ");
@@ -221,13 +236,29 @@ public static class YtDlp
         try { File.Delete(pathFile); } catch { }
         args.Append($"--encoding utf-8 --print-to-file after_move:filepath \"{pathFile}\" ");
         var started = DateTime.Now.AddSeconds(-5);
-        args.Append($"\"{item.PageUrl ?? item.Url}\"");
+        var info = InfoFile(item);
+        if (fast && File.Exists(info) && DateTime.Now - File.GetLastWriteTime(info) < TimeSpan.FromHours(2))
+            args.Append($"--load-info-json \"{info}\"");
+        else args.Append($"\"{item.PageUrl ?? item.Url}\"");
 
         string? finalPath = null;
         var errors = new StringBuilder();
         long partBase = 0; double lastPct = 0;
         var code = await Tools.RunAsync(exe, args.ToString(), line =>
         {
+            var a = aria.Match(line);
+            if (a.Success)
+            {
+                item.Status = DownloadStatus.Downloading;
+                long got = ToBytes(a.Groups[1].Value, a.Groups[2].Value), total = ToBytes(a.Groups[3].Value, a.Groups[4].Value);
+                double pct = double.Parse(a.Groups[5].Value, CultureInfo.InvariantCulture);
+                if (pct + 1 < lastPct) partBase = item.Downloaded;
+                lastPct = pct;
+                item.Size = partBase + total;
+                item.Downloaded = partBase + got;
+                if (a.Groups[6].Success) item.Speed = ToBytes(a.Groups[6].Value, a.Groups[7].Value);
+                return;
+            }
             var m = progress.Match(line);
             if (m.Success)
             {
@@ -262,6 +293,7 @@ public static class YtDlp
         item.Size = item.Downloaded = new FileInfo(finalPath).Length;
         try { Directory.Delete(tmpDir, true); } catch { }
         try { File.Delete(Path.Combine(Store.DataDir, $"cookies_{item.Id}.txt")); } catch { }
+        try { File.Delete(InfoFile(item)); } catch { }
     }
 
     static string FirstLines(string text, int n) =>

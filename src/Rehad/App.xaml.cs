@@ -54,7 +54,7 @@ public partial class App : Application
         pipe.Start();
         SetupTray();
 
-        timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         timer.Tick += (_, _) => { Manager.Tick(); CheckClipboard(); MainWin?.RefreshStatus(); };
         timer.Start();
         clipSeq = Native.GetClipboardSequenceNumber();

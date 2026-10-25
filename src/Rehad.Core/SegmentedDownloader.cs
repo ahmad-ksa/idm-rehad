@@ -11,7 +11,7 @@ namespace Rehad.Core;
 /// </summary>
 public sealed class SegmentedDownloader
 {
-    const int Buffer = 64 * 1024;
+    const int Buffer = 256 * 1024;
     const long MinSplit = 256 * 1024;
 
     readonly DownloadItem item;

@@ -82,7 +82,7 @@ public sealed class Settings
     public string VirusScannerArgs { get; set; } = "";
 
     // Connection
-    public int MaxConnections { get; set; } = 8;
+    public int MaxConnections { get; set; } = 16;
     public int TimeoutSeconds { get; set; } = 30;
     public int Retries { get; set; } = 20;
     public Dictionary<string, int> ServerLimits { get; set; } = new();

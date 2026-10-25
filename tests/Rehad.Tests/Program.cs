@@ -78,6 +78,9 @@ Check(SegmentedDownloader.TempDirFor(s, new DownloadItem { Id = 42, FileName = n
 if (YtDlp.Exe != null)
 {
     var yi = new DownloadItem { Id = 77, Kind = DownloadKind.Site, Url = baseUrl + "/clip.mp4", PageUrl = baseUrl + "/clip.mp4", FileName = "تامر حسني - قال فاكرني 😂.mp4", SaveDir = s.DefaultFolder };
+    var mi = await YtDlp.InfoAsync(yi, s, CancellationToken.None);
+    Check(File.Exists(Path.Combine(Store.DataDir, "info_77.json")), "page info saved for reuse");
+    var log = new List<string>();
     await YtDlp.DownloadAsync(yi, s, CancellationToken.None);
     Check(File.Exists(yi.FullPath) && yi.Size == 3000000, "yt-dlp download + final path: " + yi.FileName);
 }

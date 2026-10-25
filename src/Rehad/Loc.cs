@@ -109,6 +109,7 @@ public static class Loc
         // statuses
         ["st.Queued"] = ["Queued", "في الانتظار"],
         ["st.Connecting"] = ["Connecting...", "جارٍ الاتصال..."],
+        ["st.Preparing"] = ["Preparing video...", "جارٍ تجهيز الفيديو..."],
         ["st.Downloading"] = ["{0:0.##}%", "{0:0.##}%"],
         ["st.Paused"] = ["{0:0.##}% Stopped", "{0:0.##}% متوقف"],
         ["st.Assembling"] = ["Assembling...", "جارٍ التجميع..."],

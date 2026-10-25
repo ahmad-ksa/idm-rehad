@@ -268,7 +268,7 @@ public sealed class DownloadManager
         }
 
         // scheduler: start / stop queues at their times
-        if (now.Second < 1 || lastMinute != now.Minute)
+        if (lastMinute != now.Minute)
         {
             lastMinute = now.Minute;
             foreach (var q in Settings.Queues)
