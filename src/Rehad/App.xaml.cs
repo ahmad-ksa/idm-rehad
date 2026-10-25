@@ -302,7 +302,7 @@ public partial class App : Application
     void OnFailed(DownloadItem item)
     {
         if (progressWindows.TryGetValue(item.Id, out var w)) w.ShowError(item.Error);
-        else if (MainWin?.IsVisible == true) Main.FlashStatus($"{item.FileName}: {item.Error}");
+        else if (MainWin?.IsVisible == true) MainWin.FlashStatus($"{item.FileName}: {item.Error}");
     }
 
     void OnQueueFinished(QueueInfo q)
