@@ -100,7 +100,7 @@ public sealed class SchedulerWindow : Dlg
         Btn(Loc.T("sch.startnow"), () => { if (queues.SelectedIndex >= 0) App.Manager.StartQueue(App.Settings.Queues[queues.SelectedIndex]); });
         Btn(Loc.T("sch.stop"), () => { if (queues.SelectedIndex >= 0) App.Manager.StopQueue(App.Settings.Queues[queues.SelectedIndex]); });
         Btn(Loc.T("apply"), () => { App.Manager.SaveSettings(); App.Manager.Save(); });
-        Btn(Loc.T("close"), () => { App.Manager.SaveSettings(); App.Manager.Save(); App.Main?.RebuildTree(); Close(); }, isCancel: true);
+        Btn(Loc.T("close"), () => { App.Manager.SaveSettings(); App.Manager.Save(); App.MainWin?.RebuildTree(); Close(); }, isCancel: true);
     }
 
     void Fill()

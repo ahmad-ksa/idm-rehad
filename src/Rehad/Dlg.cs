@@ -28,7 +28,7 @@ public class Dlg : Window
         dock.Children.Add(bar);
         dock.Children.Add(Body);
         Content = dock;
-        if (App.Main is { IsVisible: true } m && !taskbar) Owner = m;
+        if (App.MainWin is { IsVisible: true } m && !taskbar) Owner = m;
     }
 
     public static TextBlock Label(string text, double top = 6, bool bold = false) =>

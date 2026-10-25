@@ -13,7 +13,7 @@ public partial class App : Application
     public static DownloadManager Manager { get; private set; } = null!;
     public static ObservableCollection<DownloadItem> Items { get; } = new();
     public static Settings Settings => Manager.Settings;
-    public static MainWindow? Main { get; private set; }
+    public static MainWindow? MainWin { get; private set; }
 
     readonly PipeServer pipe = new();
     System.Windows.Forms.NotifyIcon? tray;
@@ -55,12 +55,12 @@ public partial class App : Application
         SetupTray();
 
         timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        timer.Tick += (_, _) => { Manager.Tick(); CheckClipboard(); Main?.RefreshStatus(); };
+        timer.Tick += (_, _) => { Manager.Tick(); CheckClipboard(); MainWin?.RefreshStatus(); };
         timer.Start();
         clipSeq = Native.GetClipboardSequenceNumber();
 
-        Main = new MainWindow();
-        if (!background) Main.Show();
+        MainWin = new MainWindow();
+        if (!background) MainWin.Show();
         if (url != null) NewDownload(new Incoming { Url = url });
     }
 
@@ -101,11 +101,11 @@ public partial class App : Application
     {
         Current.Dispatcher.Invoke(() =>
         {
-            Main ??= new MainWindow();
-            Main.Show();
-            if (Main.WindowState == WindowState.Minimized) Main.WindowState = WindowState.Normal;
-            Main.Activate();
-            Main.Topmost = true; Main.Topmost = false;
+            MainWin ??= new MainWindow();
+            MainWin.Show();
+            if (MainWin.WindowState == WindowState.Minimized) MainWin.WindowState = WindowState.Normal;
+            MainWin.Activate();
+            MainWin.Topmost = true; MainWin.Topmost = false;
         });
     }
 
@@ -241,7 +241,7 @@ public partial class App : Application
             if (action == DuplicateAction.Ask) action = DuplicateWindow.Ask(dup);
             if (action == DuplicateAction.Skip)
             {
-                Main?.Select(dup);
+                MainWin?.Select(dup);
                 if (!dup.IsFinished) StartWithUi(dup);
                 return;
             }
@@ -302,7 +302,7 @@ public partial class App : Application
     void OnFailed(DownloadItem item)
     {
         if (progressWindows.TryGetValue(item.Id, out var w)) w.ShowError(item.Error);
-        else if (Main?.IsVisible == true) Main.FlashStatus($"{item.FileName}: {item.Error}");
+        else if (MainWin?.IsVisible == true) Main.FlashStatus($"{item.FileName}: {item.Error}");
     }
 
     void OnQueueFinished(QueueInfo q)
